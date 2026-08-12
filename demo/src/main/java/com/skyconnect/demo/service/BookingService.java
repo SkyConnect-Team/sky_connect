@@ -1,14 +1,28 @@
 package com.skyconnect.demo.service;
 
+import com.skyconnect.demo.dto.request.BookingRequest;
+import com.skyconnect.demo.dto.response.BookingResponse;
 
-import com.skyconnect.demo.entity.*;
+import com.skyconnect.demo.entity.Booking;
+import com.skyconnect.demo.entity.Flight;
+import com.skyconnect.demo.entity.Passenger;
+import com.skyconnect.demo.entity.Seat;
+
 import com.skyconnect.demo.enums.BookingStatus;
+
 import com.skyconnect.demo.enums.SeatStatus;
-import com.skyconnect.demo.exception.ResourceNotFoundException;
-import com.skyconnect.demo.repository.*;
+import com.skyconnect.demo.mapper.BookingMapper;
+
+import com.skyconnect.demo.repository.BookingRepository;
+import com.skyconnect.demo.repository.FlightRepository;
+import com.skyconnect.demo.repository.PassengerRepository;
+import com.skyconnect.demo.repository.SeatRepository;
+
+import jakarta.transaction.Transactional;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -19,129 +33,261 @@ import java.util.UUID;
 public class BookingService {
 
     private final BookingRepository bookingRepository;
-    private final UserRepository userRepository;
+
     private final FlightRepository flightRepository;
+
     private final SeatRepository seatRepository;
+
     private final PassengerRepository passengerRepository;
 
+    private final BookingMapper bookingMapper;
+
+
+    // =====================================================
+    // CREATE BOOKING
+    // =====================================================
+
     @Transactional
-    public Booking bookTicket(
-            Long userId,
-            Long flightId,
-            Long seatId,
-            String passengerName,
-            Integer age,
-            String gender,
-            String passportNumber) {
+    public BookingResponse createBooking(
+            BookingRequest request
+    ) {
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "User not found"));
+        // 1. Find flight
+        Flight flight =
+                flightRepository.findById(
+                        request.getFlightId()
+                ).orElseThrow(() ->
+                        new RuntimeException(
+                                "Flight not found with id: "
+                                        + request.getFlightId()
+                        )
+                );
 
-        Flight flight = flightRepository.findById(flightId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Flight not found"));
 
-        Seat seat = seatRepository.findById(seatId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Seat not found"));
+        // 2. Find passenger
+        Passenger passenger =
+                passengerRepository.findById(
+                        request.getPassengerId()
+                ).orElseThrow(() ->
+                        new RuntimeException(
+                                "Passenger not found with id: "
+                                        + request.getPassengerId()
+                        )
+                );
 
-        if (!seat.getFlight().getId().equals(flightId)) {
-            throw new IllegalStateException(
-                    "Seat does not belong to this flight");
+
+        // 3. Find seat
+        Seat seat =
+                seatRepository.findById(
+                        request.getSeatId()
+                ).orElseThrow(() ->
+                        new RuntimeException(
+                                "Seat not found with id: "
+                                        + request.getSeatId()
+                        )
+                );
+
+
+        // 4. Make sure seat belongs to selected flight
+        if (!seat.getFlight().getId()
+                .equals(flight.getId())) {
+
+            throw new RuntimeException(
+                    "Selected seat does not belong to this flight"
+            );
         }
 
-        if (seat.getStatus() == SeatStatus.BOOKED) {
-            throw new IllegalStateException(
-                    "Seat is already booked");
+
+        // 5. Check seat availability
+        if (seat.getStatus() != null
+                && !seat.getStatus().name().equals("AVAILABLE")) {
+
+            throw new RuntimeException(
+                    "Seat is already booked"
+            );
         }
 
+
+        // 6. Check flight available seats
         if (flight.getAvailableSeats() <= 0) {
-            throw new IllegalStateException(
-                    "No seats available");
+
+            throw new RuntimeException(
+                    "No available seats for this flight"
+            );
         }
 
-        seat.setStatus(SeatStatus.BOOKED);
 
+        // 7. Generate booking reference
+        String bookingReference =
+                "SKY-" +
+                        UUID.randomUUID()
+                                .toString()
+                                .substring(0, 8)
+                                .toUpperCase();
+
+
+        // 8. Create booking
+        Booking booking = Booking.builder()
+
+                .bookingReference(
+                        bookingReference
+                )
+
+                .passenger(
+                        passenger
+                )
+
+                .flight(
+                        flight
+                )
+
+                .seat(
+                        seat
+                )
+
+                .status(
+                        BookingStatus.CONFIRMED
+                )
+
+                .bookedAt(
+                        LocalDateTime.now()
+                )
+
+                .build();
+
+
+        // 9. Save booking
+        Booking savedBooking =
+                bookingRepository.save(
+                        booking
+                );
+
+
+        // 10. Mark seat as booked
+        seat.setStatus(
+                SeatStatus.BOOKED
+        );
+
+        seatRepository.save(seat);
+
+
+        // 11. Reduce available seats
         flight.setAvailableSeats(
                 flight.getAvailableSeats() - 1
         );
 
-        Booking booking = Booking.builder()
-                .bookingNumber(
-                        "AIR-" +
-                                UUID.randomUUID()
-                                        .toString()
-                                        .substring(0, 8)
-                                        .toUpperCase()
-                )
-                .user(user)
-                .flight(flight)
-                .seat(seat)
-                .bookingDate(LocalDateTime.now())
-                .status(BookingStatus.CONFIRMED)
-                .totalAmount(4500.0)
-                .build();
-
-        Booking savedBooking =
-                bookingRepository.save(booking);
-
-        Passenger passenger = Passenger.builder()
-                .booking(savedBooking)
-                .name(passengerName)
-                .age(age)
-                .gender(gender)
-                .passportNumber(passportNumber)
-                .build();
-
-        passengerRepository.save(passenger);
-
-        seatRepository.save(seat);
         flightRepository.save(flight);
 
-        return savedBooking;
+
+        // 12. Return response
+        return bookingMapper.toResponse(
+                savedBooking
+        );
     }
 
-    public List<Booking> getUserBookings(Long userId) {
 
-        return bookingRepository.findByUserId(userId);
+    // =====================================================
+    // GET ALL BOOKINGS
+    // =====================================================
+
+    public List<BookingResponse> getAllBookings() {
+
+        return bookingRepository
+                .findAll()
+                .stream()
+                .map(bookingMapper::toResponse)
+                .toList();
     }
 
-    public Booking getBooking(Long id) {
 
-        return bookingRepository.findById(id)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Booking not found"));
+    // =====================================================
+    // GET BOOKING BY ID
+    // =====================================================
+
+    public BookingResponse getBooking(
+            Long id
+    ) {
+
+        Booking booking =
+                bookingRepository.findById(id)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Booking not found with id: "
+                                                + id
+                                )
+                        );
+
+        return bookingMapper.toResponse(
+                booking
+        );
     }
+
+
+    // =====================================================
+    // CANCEL BOOKING
+    // =====================================================
 
     @Transactional
-    public Booking cancelBooking(Long bookingId) {
+    public BookingResponse cancelBooking(
+            Long id
+    ) {
 
-        Booking booking = getBooking(bookingId);
+        Booking booking =
+                bookingRepository.findById(id)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Booking not found with id: "
+                                                + id
+                                )
+                        );
 
-        if (booking.getStatus() == BookingStatus.CANCELLED) {
-            throw new IllegalStateException(
-                    "Booking already cancelled");
+
+        // Already cancelled
+        if (booking.getStatus()
+                == BookingStatus.CANCELLED) {
+
+            throw new RuntimeException(
+                    "Booking is already cancelled"
+            );
         }
 
-        booking.setStatus(BookingStatus.CANCELLED);
 
-        Seat seat = booking.getSeat();
-        seat.setStatus(SeatStatus.AVAILABLE);
+        // Change booking status
+        booking.setStatus(
+                BookingStatus.CANCELLED
+        );
 
-        Flight flight = booking.getFlight();
+
+        // Make seat available again
+        Seat seat =
+                booking.getSeat();
+
+        seat.setStatus(
+                SeatStatus.AVAILABLE
+        );
+
+        seatRepository.save(seat);
+
+
+        // Increase flight available seats
+        Flight flight =
+                booking.getFlight();
 
         flight.setAvailableSeats(
                 flight.getAvailableSeats() + 1
         );
 
-        seatRepository.save(seat);
         flightRepository.save(flight);
 
-        return bookingRepository.save(booking);
+
+        Booking updatedBooking =
+                bookingRepository.save(
+                        booking
+                );
+
+
+        return bookingMapper.toResponse(
+                updatedBooking
+        );
     }
 }

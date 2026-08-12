@@ -1,8 +1,9 @@
 package com.skyconnect.demo.entity;
 
-
 import com.skyconnect.demo.enums.BookingStatus;
+
 import jakarta.persistence.*;
+
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -20,25 +21,41 @@ public class Booking {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
-    private String bookingNumber;
+    @Column(
+            name = "booking_reference",
+            nullable = false,
+            unique = true
+    )
+    private String bookingReference;
 
+    // Passenger relationship
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @JoinColumn(
+            name = "passenger_id",
+            nullable = false
+    )
+    private Passenger passenger;
 
+    // Flight relationship
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "flight_id", nullable = false)
+    @JoinColumn(
+            name = "flight_id",
+            nullable = false
+    )
     private Flight flight;
 
+    // Seat relationship
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "seat_id", nullable = false)
+    @JoinColumn(
+            name = "seat_id",
+            nullable = false
+    )
     private Seat seat;
 
-    private LocalDateTime bookingDate;
-
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private BookingStatus status;
 
-    private Double totalAmount;
+    @Column(nullable = false)
+    private LocalDateTime bookedAt;
 }

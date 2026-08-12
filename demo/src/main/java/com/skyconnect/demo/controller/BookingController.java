@@ -1,10 +1,18 @@
 package com.skyconnect.demo.controller;
 
+import com.skyconnect.demo.dto.request.BookingRequest;
+import com.skyconnect.demo.dto.response.ApiResponse;
+import com.skyconnect.demo.dto.response.BookingResponse;
 
-
-import com.skyconnect.demo.entity.Booking;
 import com.skyconnect.demo.service.BookingService;
+
+import jakarta.validation.Valid;
+
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,46 +25,85 @@ public class BookingController {
 
     private final BookingService bookingService;
 
-    @PostMapping
-    public Booking bookTicket(
-            @RequestParam Long userId,
-            @RequestParam Long flightId,
-            @RequestParam Long seatId,
-            @RequestParam String passengerName,
-            @RequestParam Integer age,
-            @RequestParam String gender,
-            @RequestParam(required = false)
-            String passportNumber) {
 
-        return bookingService.bookTicket(
-                userId,
-                flightId,
-                seatId,
-                passengerName,
-                age,
-                gender,
-                passportNumber
+    // CREATE BOOKING
+    @PostMapping
+    public ResponseEntity<ApiResponse<BookingResponse>>
+    createBooking(
+            @Valid @RequestBody BookingRequest request
+    ) {
+
+        BookingResponse response =
+                bookingService.createBooking(
+                        request
+                );
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(
+                        new ApiResponse<>(
+                                true,
+                                "Booking created successfully",
+                                response
+                        )
+                );
+    }
+
+
+    // GET ALL BOOKINGS
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<BookingResponse>>>
+    getAllBookings() {
+
+        List<BookingResponse> bookings =
+                bookingService.getAllBookings();
+
+        return ResponseEntity.ok(
+                new ApiResponse<>(
+                        true,
+                        "Bookings retrieved successfully",
+                        bookings
+                )
         );
     }
 
+
+    // GET BOOKING BY ID
     @GetMapping("/{id}")
-    public Booking getBooking(
-            @PathVariable Long id) {
+    public ResponseEntity<ApiResponse<BookingResponse>>
+    getBooking(
+            @PathVariable Long id
+    ) {
 
-        return bookingService.getBooking(id);
+        BookingResponse booking =
+                bookingService.getBooking(id);
+
+        return ResponseEntity.ok(
+                new ApiResponse<>(
+                        true,
+                        "Booking retrieved successfully",
+                        booking
+                )
+        );
     }
 
-    @GetMapping("/user/{userId}")
-    public List<Booking> getUserBookings(
-            @PathVariable Long userId) {
 
-        return bookingService.getUserBookings(userId);
-    }
-
+    // CANCEL BOOKING
     @PutMapping("/{id}/cancel")
-    public Booking cancelBooking(
-            @PathVariable Long id) {
+    public ResponseEntity<ApiResponse<BookingResponse>>
+    cancelBooking(
+            @PathVariable Long id
+    ) {
 
-        return bookingService.cancelBooking(id);
+        BookingResponse booking =
+                bookingService.cancelBooking(id);
+
+        return ResponseEntity.ok(
+                new ApiResponse<>(
+                        true,
+                        "Booking cancelled successfully",
+                        booking
+                )
+        );
     }
 }

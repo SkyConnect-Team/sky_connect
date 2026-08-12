@@ -1,15 +1,18 @@
 package com.skyconnect.demo.service;
 
-
-
+import com.skyconnect.demo.dto.request.FlightRequest;
+import com.skyconnect.demo.dto.response.FlightResponse;
 import com.skyconnect.demo.entity.Flight;
 import com.skyconnect.demo.entity.Seat;
 import com.skyconnect.demo.enums.FlightStatus;
 import com.skyconnect.demo.enums.SeatStatus;
 import com.skyconnect.demo.exception.ResourceNotFoundException;
+import com.skyconnect.demo.mapper.FlightMapper;
 import com.skyconnect.demo.repository.FlightRepository;
 import com.skyconnect.demo.repository.SeatRepository;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,36 +23,36 @@ import java.util.List;
 public class FlightService {
 
     private final FlightRepository flightRepository;
+
     private final SeatRepository seatRepository;
 
+    private final FlightMapper flightMapper;
+
+
+    // CREATE FLIGHT
     @Transactional
-    public Flight createFlight(Flight flight) {
+    public FlightResponse createFlight(FlightRequest request) {
 
-        flight.setStatus(FlightStatus.SCHEDULED);
+        Flight flight = flightMapper.toEntity(request);
 
-        if (flight.getTotalSeats() == null ||
-                flight.getTotalSeats() <= 0) {
-
-            throw new IllegalStateException(
-                    "Total seats must be greater than zero");
-        }
-
-        flight.setAvailableSeats(flight.getTotalSeats());
-
-        Flight savedFlight = flightRepository.save(flight);
+        Flight savedFlight =
+                flightRepository.save(flight);
 
         createSeats(savedFlight);
 
-        return savedFlight;
+        return flightMapper.toResponse(savedFlight);
     }
 
+
+    // CREATE SEATS
     private void createSeats(Flight flight) {
 
         int totalSeats = flight.getTotalSeats();
 
         for (int i = 1; i <= totalSeats; i++) {
 
-            String seatNumber = generateSeatNumber(i);
+            String seatNumber =
+                    generateSeatNumber(i);
 
             Seat seat = Seat.builder()
                     .flight(flight)
@@ -61,31 +64,48 @@ public class FlightService {
         }
     }
 
+
+    // GENERATE SEAT NUMBER
     private String generateSeatNumber(int number) {
 
         int row = ((number - 1) / 6) + 1;
 
         int position = (number - 1) % 6;
 
-        char column = (char) ('A' + position);
+        char column =
+                (char) ('A' + position);
 
         return row + String.valueOf(column);
     }
 
-    public List<Flight> getAllFlights() {
 
-        return flightRepository.findAll();
+    // GET ALL FLIGHTS
+    public List<FlightResponse> getAllFlights() {
+
+        return flightRepository.findAll()
+                .stream()
+                .map(flightMapper::toResponse)
+                .toList();
     }
 
-    public Flight getFlight(Long id) {
 
-        return flightRepository.findById(id)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Flight not found"));
+    // GET FLIGHT BY ID
+    public FlightResponse getFlight(Long id) {
+
+        Flight flight =
+                flightRepository.findById(id)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Flight not found with id: " + id
+                                )
+                        );
+
+        return flightMapper.toResponse(flight);
     }
 
-    public List<Flight> searchFlights(
+
+    // SEARCH FLIGHTS
+    public List<FlightResponse> searchFlights(
             String source,
             String destination) {
 
@@ -93,26 +113,94 @@ public class FlightService {
                 .findBySourceIgnoreCaseAndDestinationIgnoreCase(
                         source,
                         destination
-                );
+                )
+                .stream()
+                .map(flightMapper::toResponse)
+                .toList();
     }
 
-    public Flight updateFlight(Long id, Flight updatedFlight) {
 
-        Flight flight = getFlight(id);
+    // UPDATE FLIGHT
+    public FlightResponse updateFlight(
+            Long id,
+            FlightRequest request) {
 
-        flight.setAirline(updatedFlight.getAirline());
-        flight.setSource(updatedFlight.getSource());
-        flight.setDestination(updatedFlight.getDestination());
-        flight.setDepartureTime(updatedFlight.getDepartureTime());
-        flight.setArrivalTime(updatedFlight.getArrivalTime());
-        flight.setStatus(updatedFlight.getStatus());
+        Flight flight =
+                flightRepository.findById(id)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Flight not found with id: " + id
+                                )
+                        );
 
-        return flightRepository.save(flight);
+        flight.setFlightNumber(
+                request.getFlightNumber()
+        );
+
+        flight.setAirline(
+                request.getAirline()
+        );
+
+        flight.setSource(
+                request.getSource()
+        );
+
+        flight.setDestination(
+                request.getDestination()
+        );
+
+        flight.setDepartureTime(
+                request.getDepartureTime()
+        );
+
+        flight.setArrivalTime(
+                request.getArrivalTime()
+        );
+
+        Flight updatedFlight =
+                flightRepository.save(flight);
+
+        return flightMapper.toResponse(updatedFlight);
     }
 
+
+    // UPDATE FLIGHT STATUS
+    public FlightResponse updateFlightStatus(
+            Long id,
+            FlightStatus status) {
+
+        Flight flight =
+                flightRepository.findById(id)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Flight not found with id: " + id
+                                )
+                        );
+
+        flight.setStatus(status);
+
+        Flight updatedFlight =
+                flightRepository.save(flight);
+
+        return flightMapper.toResponse(updatedFlight);
+    }
+
+
+    // DELETE FLIGHT
+    @Transactional
     public void deleteFlight(Long id) {
 
-        Flight flight = getFlight(id);
+        Flight flight =
+                flightRepository.findById(id)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Flight not found with id: " + id
+                                )
+                        );
+
+        seatRepository.deleteAll(
+                seatRepository.findByFlightId(id)
+        );
 
         flightRepository.delete(flight);
     }

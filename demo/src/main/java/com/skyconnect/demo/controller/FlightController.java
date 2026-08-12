@@ -1,16 +1,23 @@
-
 package com.skyconnect.demo.controller;
 
-import java.util.List;
-
-import com.skyconnect.demo.entity.Flight;
-import com.skyconnect.demo.entity.Seat;
+import com.skyconnect.demo.dto.request.FlightRequest;
+import com.skyconnect.demo.dto.response.ApiResponse;
+import com.skyconnect.demo.dto.response.FlightResponse;
+import com.skyconnect.demo.dto.response.SeatResponse;
+import com.skyconnect.demo.enums.FlightStatus;
 import com.skyconnect.demo.service.FlightService;
 import com.skyconnect.demo.service.SeatService;
 
+import jakarta.validation.Valid;
+
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/flights")
@@ -19,58 +26,172 @@ import org.springframework.web.bind.annotation.*;
 public class FlightController {
 
     private final FlightService flightService;
+
     private final SeatService seatService;
 
-    // Create a new flight
+
+    // CREATE FLIGHT
     @PostMapping
-    public Flight createFlight(@RequestBody Flight flight) {
-        return flightService.createFlight(flight);
+    public ResponseEntity<ApiResponse<FlightResponse>>
+    createFlight(
+            @Valid @RequestBody FlightRequest request) {
+
+        FlightResponse flight =
+                flightService.createFlight(request);
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(
+                        new ApiResponse<>(
+                                true,
+                                "Flight created successfully",
+                                flight
+                        )
+                );
     }
 
-    // Get all flights
+
+    // GET ALL FLIGHTS
     @GetMapping
-    public List<Flight> getAllFlights() {
-        return flightService.getAllFlights();
+    public ResponseEntity<ApiResponse<List<FlightResponse>>>
+    getAllFlights() {
+
+        List<FlightResponse> flights =
+                flightService.getAllFlights();
+
+        return ResponseEntity.ok(
+                new ApiResponse<>(
+                        true,
+                        "Flights retrieved successfully",
+                        flights
+                )
+        );
     }
 
-    // Get flight by ID
+
+    // GET FLIGHT BY ID
     @GetMapping("/{id}")
-    public Flight getFlight(@PathVariable Long id) {
-        return flightService.getFlight(id);
+    public ResponseEntity<ApiResponse<FlightResponse>>
+    getFlight(
+            @PathVariable Long id) {
+
+        FlightResponse flight =
+                flightService.getFlight(id);
+
+        return ResponseEntity.ok(
+                new ApiResponse<>(
+                        true,
+                        "Flight retrieved successfully",
+                        flight
+                )
+        );
     }
 
-    // Search flights
+
+    // SEARCH FLIGHTS
     @GetMapping("/search")
-    public List<Flight> searchFlights(
+    public ResponseEntity<ApiResponse<List<FlightResponse>>>
+    searchFlights(
             @RequestParam String source,
             @RequestParam String destination) {
 
-        return flightService.searchFlights(source, destination);
+        List<FlightResponse> flights =
+                flightService.searchFlights(
+                        source,
+                        destination
+                );
+
+        return ResponseEntity.ok(
+                new ApiResponse<>(
+                        true,
+                        "Flights searched successfully",
+                        flights
+                )
+        );
     }
 
-    // Update flight
+
+    // UPDATE FLIGHT
     @PutMapping("/{id}")
-    public Flight updateFlight(
+    public ResponseEntity<ApiResponse<FlightResponse>>
+    updateFlight(
             @PathVariable Long id,
-            @RequestBody Flight flight) {
+            @Valid @RequestBody FlightRequest request) {
 
-        return flightService.updateFlight(id, flight);
+        FlightResponse flight =
+                flightService.updateFlight(
+                        id,
+                        request
+                );
+
+        return ResponseEntity.ok(
+                new ApiResponse<>(
+                        true,
+                        "Flight updated successfully",
+                        flight
+                )
+        );
     }
 
-    // Delete flight
+
+    // UPDATE FLIGHT STATUS
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<ApiResponse<FlightResponse>>
+    updateFlightStatus(
+            @PathVariable Long id,
+            @RequestParam FlightStatus status) {
+
+        FlightResponse flight =
+                flightService.updateFlightStatus(
+                        id,
+                        status
+                );
+
+        return ResponseEntity.ok(
+                new ApiResponse<>(
+                        true,
+                        "Flight status updated successfully",
+                        flight
+                )
+        );
+    }
+
+
+    // DELETE FLIGHT
     @DeleteMapping("/{id}")
-    public String deleteFlight(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>>
+    deleteFlight(
+            @PathVariable Long id) {
 
         flightService.deleteFlight(id);
 
-        return "Flight deleted successfully";
+        return ResponseEntity.ok(
+                new ApiResponse<>(
+                        true,
+                        "Flight deleted successfully",
+                        null
+                )
+        );
     }
 
-    // Get seats for a flight
-    @GetMapping("/{flightId}/seats")
-    public List<Seat> getSeats(@PathVariable Long flightId) {
 
-        return seatService.getSeatsByFlight(flightId);
+    // GET SEATS
+    @GetMapping("/{flightId}/seats")
+    public ResponseEntity<ApiResponse<List<SeatResponse>>>
+    getSeats(
+            @PathVariable Long flightId) {
+
+        List<SeatResponse> seats =
+                seatService.getSeatsByFlight(
+                        flightId
+                );
+
+        return ResponseEntity.ok(
+                new ApiResponse<>(
+                        true,
+                        "Seats retrieved successfully",
+                        seats
+                )
+        );
     }
 }
-
