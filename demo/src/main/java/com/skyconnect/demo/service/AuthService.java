@@ -3,34 +3,24 @@ package com.skyconnect.demo.service;
 import com.skyconnect.demo.dto.request.LoginRequest;
 import com.skyconnect.demo.dto.request.RegisterRequest;
 import com.skyconnect.demo.dto.response.AuthResponse;
-
 import com.skyconnect.demo.entity.User;
 import com.skyconnect.demo.enums.Role;
-
 import com.skyconnect.demo.repository.UserRepository;
-
 import com.skyconnect.demo.security.JwtService;
 
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-
 import org.springframework.security.crypto.password.PasswordEncoder;
-
 import org.springframework.stereotype.Service;
-
 
 @Service
 @RequiredArgsConstructor
-public class UserService {
+public class AuthService {
 
 
     private final UserRepository userRepository;
 
     private final PasswordEncoder passwordEncoder;
-
-    private final AuthenticationManager authenticationManager;
 
     private final JwtService jwtService;
 
@@ -39,23 +29,25 @@ public class UserService {
     // REGISTER
     // =====================================================
 
-    public User register(
+    public AuthResponse register(
             RegisterRequest request
     ) {
 
 
-        // Check email
+        // Check existing email
+
         if (userRepository.existsByEmail(
                 request.getEmail()
         )) {
 
-            throw new IllegalStateException(
+            throw new RuntimeException(
                     "Email already registered"
             );
         }
 
 
         // Create user
+
         User user = User.builder()
 
                 .name(
@@ -83,7 +75,33 @@ public class UserService {
                 .build();
 
 
-        return userRepository.save(user);
+        User savedUser =
+                userRepository.save(user);
+
+
+        // Generate token immediately
+
+        String token =
+                jwtService.generateToken(
+                        savedUser.getEmail(),
+                        savedUser.getRole().name()
+                );
+
+
+        return new AuthResponse(
+
+                token,
+
+                "Bearer",
+
+                savedUser.getId(),
+
+                savedUser.getName(),
+
+                savedUser.getEmail(),
+
+                savedUser.getRole().name()
+        );
     }
 
 
@@ -96,31 +114,37 @@ public class UserService {
     ) {
 
 
-        // Authenticate email + password
-        authenticationManager.authenticate(
-
-                new UsernamePasswordAuthenticationToken(
-
-                        request.getEmail(),
-
-                        request.getPassword()
-                )
-        );
-
-
         // Find user
+
         User user =
                 userRepository.findByEmail(
                                 request.getEmail()
                         )
                         .orElseThrow(() ->
                                 new RuntimeException(
-                                        "User not found"
+                                        "Invalid email or password"
                                 )
                         );
 
 
+        // Check password
+
+        if (!passwordEncoder.matches(
+
+                request.getPassword(),
+
+                user.getPassword()
+
+        )) {
+
+            throw new RuntimeException(
+                    "Invalid email or password"
+            );
+        }
+
+
         // Generate JWT
+
         String token =
                 jwtService.generateToken(
 
@@ -130,7 +154,8 @@ public class UserService {
                 );
 
 
-        // Return authentication response
+        // Return response
+
         return new AuthResponse(
 
                 token,
@@ -145,23 +170,5 @@ public class UserService {
 
                 user.getRole().name()
         );
-    }
-
-
-    // =====================================================
-    // GET USER
-    // =====================================================
-
-    public User getUser(
-            Long id
-    ) {
-
-        return userRepository.findById(id)
-
-                .orElseThrow(() ->
-                        new RuntimeException(
-                                "User not found"
-                        )
-                );
     }
 }
