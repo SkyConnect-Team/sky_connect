@@ -1,17 +1,13 @@
 package com.skyconnect.demo.controller;
 
-import com.fasterxml.jackson.databind.JsonNode;
+
 import com.skyconnect.demo.dto.response.FlightLiveResponse;
-import com.skyconnect.demo.dto.response.FlightSearchResponse;
 import com.skyconnect.demo.service.AirLabsService;
 
-import com.skyconnect.demo.service.AirLabsService;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/flights")
@@ -21,6 +17,10 @@ public class FlightLiveController {
 
     private final AirLabsService airLabsService;
 
+
+    // =========================
+    // LIVE FLIGHT
+    // =========================
 
     @GetMapping("/{flightId}/live")
     public ResponseEntity<FlightLiveResponse> getLiveFlight(
@@ -32,4 +32,24 @@ public class FlightLiveController {
         return ResponseEntity.ok(response);
     }
 
+
+    // =========================
+    // FLIGHT SCHEDULES
+    // =========================
+    @GetMapping(
+            value = "/schedules",
+            produces = "application/json"
+    )
+    public ResponseEntity<String> getSchedules(
+            @RequestParam String depIata,
+            @RequestParam String arrIata) {
+
+        String response =
+                airLabsService.getSchedules(
+                        depIata,
+                        arrIata
+                );
+
+        return ResponseEntity.ok(response);
+    }
 }
