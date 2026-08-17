@@ -3,8 +3,7 @@ package com.skyconnect.demo.controller;
 import com.skyconnect.demo.dto.request.LoginRequest;
 import com.skyconnect.demo.dto.request.RegisterRequest;
 import com.skyconnect.demo.dto.response.AuthResponse;
-import com.skyconnect.demo.entity.User;
-import com.skyconnect.demo.service.UserService;
+import com.skyconnect.demo.service.AuthService;
 
 import jakarta.validation.Valid;
 
@@ -22,16 +21,16 @@ import org.springframework.web.bind.annotation.*;
 @CrossOrigin
 public class AuthController {
 
-
-    private final UserService userService;
+    private final AuthService authService;
 
 
     // =====================================================
     // REGISTER
+    // CUSTOMER + ADMIN
     // =====================================================
 
     @PostMapping("/register")
-    public ResponseEntity<User> register(
+    public ResponseEntity<AuthResponse> register(
 
             @Valid
             @RequestBody
@@ -39,13 +38,12 @@ public class AuthController {
 
     ) {
 
-        User user =
-                userService.register(request);
-
+        AuthResponse response =
+                authService.register(request);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(user);
+                .body(response);
     }
 
 
@@ -63,8 +61,7 @@ public class AuthController {
     ) {
 
         AuthResponse response =
-                userService.login(request);
-
+                authService.login(request);
 
         return ResponseEntity.ok(response);
     }

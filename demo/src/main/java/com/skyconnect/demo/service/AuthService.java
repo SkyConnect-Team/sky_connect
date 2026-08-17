@@ -13,10 +13,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+
 @Service
 @RequiredArgsConstructor
 public class AuthService {
-
 
     private final UserRepository userRepository;
 
@@ -27,14 +27,16 @@ public class AuthService {
 
     // =====================================================
     // REGISTER
+    // CUSTOMER + ADMIN
     // =====================================================
 
     public AuthResponse register(
             RegisterRequest request
     ) {
 
-
-        // Check existing email
+        // ==========================================
+        // CHECK EMAIL
+        // ==========================================
 
         if (userRepository.existsByEmail(
                 request.getEmail()
@@ -46,7 +48,39 @@ public class AuthService {
         }
 
 
-        // Create user
+        // ==========================================
+        // DETERMINE ROLE
+        // ==========================================
+
+        Role role;
+
+        if (request.getAdminCode() != null
+                && !request.getAdminCode().isBlank()) {
+
+            // Admin code was provided
+
+            if (!request.getAdminCode().equals(
+                    "SKYADMIN2026"
+            )) {
+
+                throw new RuntimeException(
+                        "Invalid admin code"
+                );
+            }
+
+            role = Role.ADMIN;
+
+        } else {
+
+            // No admin code → normal customer
+
+            role = Role.CUSTOMER;
+        }
+
+
+        // ==========================================
+        // CREATE USER
+        // ==========================================
 
         User user = User.builder()
 
@@ -69,24 +103,36 @@ public class AuthService {
                 )
 
                 .role(
-                        Role.CUSTOMER
+                        role
                 )
 
                 .build();
 
 
+        // ==========================================
+        // SAVE USER
+        // ==========================================
+
         User savedUser =
                 userRepository.save(user);
 
 
-        // Generate token immediately
+        // ==========================================
+        // GENERATE JWT
+        // ==========================================
 
         String token =
                 jwtService.generateToken(
+
                         savedUser.getEmail(),
+
                         savedUser.getRole().name()
                 );
 
+
+        // ==========================================
+        // RESPONSE
+        // ==========================================
 
         return new AuthResponse(
 
@@ -113,9 +159,6 @@ public class AuthService {
             LoginRequest request
     ) {
 
-
-        // Find user
-
         User user =
                 userRepository.findByEmail(
                                 request.getEmail()
@@ -126,8 +169,6 @@ public class AuthService {
                                 )
                         );
 
-
-        // Check password
 
         if (!passwordEncoder.matches(
 
@@ -143,8 +184,6 @@ public class AuthService {
         }
 
 
-        // Generate JWT
-
         String token =
                 jwtService.generateToken(
 
@@ -153,8 +192,6 @@ public class AuthService {
                         user.getRole().name()
                 );
 
-
-        // Return response
 
         return new AuthResponse(
 

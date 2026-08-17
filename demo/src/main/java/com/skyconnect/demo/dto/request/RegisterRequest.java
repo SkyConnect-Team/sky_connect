@@ -26,4 +26,6 @@ public class RegisterRequest {
             message = "Phone number must contain 10 digits"
     )
     private String phone;
+
+    private String adminCode;
 }
