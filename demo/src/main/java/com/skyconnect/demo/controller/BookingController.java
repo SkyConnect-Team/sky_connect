@@ -4,6 +4,7 @@ import com.skyconnect.demo.dto.request.BookingRequest;
 import com.skyconnect.demo.dto.response.ApiResponse;
 import com.skyconnect.demo.dto.response.BookingResponse;
 
+import com.skyconnect.demo.dto.response.MyBookingResponse;
 import com.skyconnect.demo.service.BookingService;
 
 import jakarta.validation.Valid;
@@ -86,7 +87,22 @@ public class BookingController {
                 )
         );
     }
+    @GetMapping("/my")
+    public ResponseEntity<
+            ApiResponse<List<MyBookingResponse>>
+            > getMyBookings() {
 
+        List<MyBookingResponse> bookings =
+                bookingService.getMyBookings();
+
+        return ResponseEntity.ok(
+                new ApiResponse<>(
+                        true,
+                        "My bookings retrieved successfully",
+                        bookings
+                )
+        );
+    }
 
     // CANCEL BOOKING
     @PutMapping("/{id}/cancel")

@@ -2,17 +2,14 @@ package com.skyconnect.demo.service;
 
 import com.skyconnect.demo.dto.request.BookingRequest;
 import com.skyconnect.demo.dto.response.BookingResponse;
-
+import com.skyconnect.demo.dto.response.MyBookingResponse;
 import com.skyconnect.demo.entity.Booking;
 import com.skyconnect.demo.entity.Flight;
 import com.skyconnect.demo.entity.Passenger;
 import com.skyconnect.demo.entity.Seat;
-
 import com.skyconnect.demo.enums.BookingStatus;
-
 import com.skyconnect.demo.enums.SeatStatus;
 import com.skyconnect.demo.mapper.BookingMapper;
-
 import com.skyconnect.demo.repository.BookingRepository;
 import com.skyconnect.demo.repository.FlightRepository;
 import com.skyconnect.demo.repository.PassengerRepository;
@@ -22,23 +19,27 @@ import jakarta.transaction.Transactional;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+
 @Service
 @RequiredArgsConstructor
 public class BookingService {
+
 
     private final BookingRepository bookingRepository;
 
     private final FlightRepository flightRepository;
 
-    private final SeatRepository seatRepository;
-
     private final PassengerRepository passengerRepository;
+
+    private final SeatRepository seatRepository;
 
     private final BookingMapper bookingMapper;
 
@@ -52,7 +53,10 @@ public class BookingService {
             BookingRequest request
     ) {
 
+        // -------------------------------------------------
         // 1. Find flight
+        // -------------------------------------------------
+
         Flight flight =
                 flightRepository.findById(
                         request.getFlightId()
@@ -64,7 +68,10 @@ public class BookingService {
                 );
 
 
+        // -------------------------------------------------
         // 2. Find passenger
+        // -------------------------------------------------
+
         Passenger passenger =
                 passengerRepository.findById(
                         request.getPassengerId()
@@ -76,7 +83,10 @@ public class BookingService {
                 );
 
 
+        // -------------------------------------------------
         // 3. Find seat
+        // -------------------------------------------------
+
         Seat seat =
                 seatRepository.findById(
                         request.getSeatId()
@@ -88,9 +98,14 @@ public class BookingService {
                 );
 
 
-        // 4. Make sure seat belongs to selected flight
-        if (!seat.getFlight().getId()
-                .equals(flight.getId())) {
+        // -------------------------------------------------
+        // 4. Check seat belongs to flight
+        // -------------------------------------------------
+
+        if (seat.getFlight() == null ||
+                !seat.getFlight()
+                        .getId()
+                        .equals(flight.getId())) {
 
             throw new RuntimeException(
                     "Selected seat does not belong to this flight"
@@ -98,9 +113,12 @@ public class BookingService {
         }
 
 
+        // -------------------------------------------------
         // 5. Check seat availability
-        if (seat.getStatus() != null
-                && !seat.getStatus().name().equals("AVAILABLE")) {
+        // -------------------------------------------------
+
+        if (seat.getStatus() != null &&
+                seat.getStatus() != SeatStatus.AVAILABLE) {
 
             throw new RuntimeException(
                     "Seat is already booked"
@@ -108,8 +126,12 @@ public class BookingService {
         }
 
 
-        // 6. Check flight available seats
-        if (flight.getAvailableSeats() <= 0) {
+        // -------------------------------------------------
+        // 6. Check flight availability
+        // -------------------------------------------------
+
+        if (flight.getAvailableSeats() == null ||
+                flight.getAvailableSeats() <= 0) {
 
             throw new RuntimeException(
                     "No available seats for this flight"
@@ -117,7 +139,10 @@ public class BookingService {
         }
 
 
+        // -------------------------------------------------
         // 7. Generate booking reference
+        // -------------------------------------------------
+
         String bookingReference =
                 "SKY-" +
                         UUID.randomUUID()
@@ -126,44 +151,54 @@ public class BookingService {
                                 .toUpperCase();
 
 
+        // -------------------------------------------------
         // 8. Create booking
-        Booking booking = Booking.builder()
+        // -------------------------------------------------
 
-                .bookingReference(
-                        bookingReference
-                )
+        Booking booking =
+                Booking.builder()
 
-                .passenger(
-                        passenger
-                )
+                        .bookingReference(
+                                bookingReference
+                        )
 
-                .flight(
-                        flight
-                )
+                        .passenger(
+                                passenger
+                        )
 
-                .seat(
-                        seat
-                )
+                        .flight(
+                                flight
+                        )
 
-                .status(
-                        BookingStatus.CONFIRMED
-                )
+                        .seat(
+                                seat
+                        )
 
-                .bookedAt(
-                        LocalDateTime.now()
-                )
+                        .status(
+                                BookingStatus.CONFIRMED
+                        )
 
-                .build();
+                        .bookedAt(
+                                LocalDateTime.now()
+                        )
+
+                        .build();
 
 
+        // -------------------------------------------------
         // 9. Save booking
+        // -------------------------------------------------
+
         Booking savedBooking =
                 bookingRepository.save(
                         booking
                 );
 
 
-        // 10. Mark seat as booked
+        // -------------------------------------------------
+        // 10. Mark seat as BOOKED
+        // -------------------------------------------------
+
         seat.setStatus(
                 SeatStatus.BOOKED
         );
@@ -171,7 +206,10 @@ public class BookingService {
         seatRepository.save(seat);
 
 
+        // -------------------------------------------------
         // 11. Reduce available seats
+        // -------------------------------------------------
+
         flight.setAvailableSeats(
                 flight.getAvailableSeats() - 1
         );
@@ -179,7 +217,10 @@ public class BookingService {
         flightRepository.save(flight);
 
 
-        // 12. Return response
+        // -------------------------------------------------
+        // 12. Return booking response
+        // -------------------------------------------------
+
         return bookingMapper.toResponse(
                 savedBooking
         );
@@ -187,9 +228,105 @@ public class BookingService {
 
 
     // =====================================================
+    // GET MY BOOKINGS
+    // =====================================================
+
+    @Transactional
+    public List<MyBookingResponse> getMyBookings() {
+
+        // -------------------------------------------------
+        // 1. Get logged-in user
+        // -------------------------------------------------
+
+        Authentication authentication =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication();
+
+
+        if (authentication == null ||
+                !authentication.isAuthenticated()) {
+
+            throw new RuntimeException(
+                    "User is not authenticated"
+            );
+        }
+
+
+        // -------------------------------------------------
+        // 2. Get email from JWT
+        // -------------------------------------------------
+
+        String email =
+                authentication.getName();
+
+
+        // -------------------------------------------------
+        // 3. Find bookings using passenger email
+        // -------------------------------------------------
+
+        List<Booking> bookings =
+                bookingRepository
+                        .findByPassenger_Email(email);
+
+
+        // -------------------------------------------------
+        // 4. Convert Booking -> MyBookingResponse
+        // -------------------------------------------------
+
+        return bookings.stream()
+
+                .map(booking -> {
+
+                    // Load relationships while transaction
+                    // is still active
+
+                    Flight flight =
+                            booking.getFlight();
+
+                    Seat seat =
+                            booking.getSeat();
+
+
+                    return MyBookingResponse.builder()
+
+                            .bookingReference(
+                                    booking.getBookingReference()
+                            )
+
+                            .flightNumber(
+                                    flight.getFlightNumber()
+                            )
+
+                            .source(
+                                    flight.getSource()
+                            )
+
+                            .destination(
+                                    flight.getDestination()
+                            )
+
+                            .seatNumber(
+                                    seat.getSeatNumber()
+                            )
+
+                            .status(
+                                    booking.getStatus()
+                                            .name()
+                            )
+
+                            .build();
+                })
+
+                .toList();
+    }
+
+
+    // =====================================================
     // GET ALL BOOKINGS
     // =====================================================
 
+    @Transactional
     public List<BookingResponse> getAllBookings() {
 
         return bookingRepository
@@ -204,18 +341,21 @@ public class BookingService {
     // GET BOOKING BY ID
     // =====================================================
 
+    @Transactional
     public BookingResponse getBooking(
             Long id
     ) {
 
         Booking booking =
                 bookingRepository.findById(id)
+
                         .orElseThrow(() ->
                                 new RuntimeException(
                                         "Booking not found with id: "
                                                 + id
                                 )
                         );
+
 
         return bookingMapper.toResponse(
                 booking
@@ -232,8 +372,13 @@ public class BookingService {
             Long id
     ) {
 
+        // -------------------------------------------------
+        // 1. Find booking
+        // -------------------------------------------------
+
         Booking booking =
                 bookingRepository.findById(id)
+
                         .orElseThrow(() ->
                                 new RuntimeException(
                                         "Booking not found with id: "
@@ -242,7 +387,10 @@ public class BookingService {
                         );
 
 
-        // Already cancelled
+        // -------------------------------------------------
+        // 2. Check already cancelled
+        // -------------------------------------------------
+
         if (booking.getStatus()
                 == BookingStatus.CANCELLED) {
 
@@ -252,39 +400,62 @@ public class BookingService {
         }
 
 
-        // Change booking status
+        // -------------------------------------------------
+        // 3. Change booking status
+        // -------------------------------------------------
+
         booking.setStatus(
                 BookingStatus.CANCELLED
         );
 
 
-        // Make seat available again
+        // -------------------------------------------------
+        // 4. Make seat available again
+        // -------------------------------------------------
+
         Seat seat =
                 booking.getSeat();
 
-        seat.setStatus(
-                SeatStatus.AVAILABLE
-        );
+        if (seat != null) {
 
-        seatRepository.save(seat);
+            seat.setStatus(
+                    SeatStatus.AVAILABLE
+            );
+
+            seatRepository.save(seat);
+        }
 
 
-        // Increase flight available seats
+        // -------------------------------------------------
+        // 5. Increase flight available seats
+        // -------------------------------------------------
+
         Flight flight =
                 booking.getFlight();
 
-        flight.setAvailableSeats(
-                flight.getAvailableSeats() + 1
-        );
+        if (flight != null) {
 
-        flightRepository.save(flight);
+            flight.setAvailableSeats(
+                    flight.getAvailableSeats() + 1
+            );
 
+            flightRepository.save(flight);
+        }
+
+
+        // -------------------------------------------------
+        // 6. Save updated booking
+        // -------------------------------------------------
 
         Booking updatedBooking =
                 bookingRepository.save(
                         booking
                 );
 
+
+        // -------------------------------------------------
+        // 7. Return booking response
+        // -------------------------------------------------
 
         return bookingMapper.toResponse(
                 updatedBooking

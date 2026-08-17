@@ -22,4 +22,5 @@ public interface BookingRepository
     List<Booking> findByFlightId(
             Long flightId
     );
+    List<Booking> findByPassenger_Email(String email);
 }
