@@ -97,7 +97,7 @@ public class SecurityConfig {
                                 "/api/auth/**"
                         ).permitAll()
 
-
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         // =========================================
                         // FLIGHT GET
                         // Anyone can view flights
