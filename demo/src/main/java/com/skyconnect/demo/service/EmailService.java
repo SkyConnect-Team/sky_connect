@@ -11,7 +11,7 @@ public class EmailService {
 
     private final JavaMailSender mailSender;
 
-    private final String fromEmail = "bhavani.s0628@gmail.com";
+    private final String fromEmail = "dharshanamuthuramalingam@gmail.com";
 
 
     // =====================================================
