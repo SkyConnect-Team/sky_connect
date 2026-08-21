@@ -43,15 +43,13 @@ public class BookingService {
 
     private final BookingMapper bookingMapper;
 
+    private final EmailService emailService;
 
     // =====================================================
     // CREATE BOOKING
     // =====================================================
-
     @Transactional
-    public BookingResponse createBooking(
-            BookingRequest request
-    ) {
+    public BookingResponse createBooking(BookingRequest request) {
 
         // -------------------------------------------------
         // 1. Find flight
@@ -157,31 +155,12 @@ public class BookingService {
 
         Booking booking =
                 Booking.builder()
-
-                        .bookingReference(
-                                bookingReference
-                        )
-
-                        .passenger(
-                                passenger
-                        )
-
-                        .flight(
-                                flight
-                        )
-
-                        .seat(
-                                seat
-                        )
-
-                        .status(
-                                BookingStatus.CONFIRMED
-                        )
-
-                        .bookedAt(
-                                LocalDateTime.now()
-                        )
-
+                        .bookingReference(bookingReference)
+                        .passenger(passenger)
+                        .flight(flight)
+                        .seat(seat)
+                        .status(BookingStatus.CONFIRMED)
+                        .bookedAt(LocalDateTime.now())
                         .build();
 
 
@@ -190,9 +169,7 @@ public class BookingService {
         // -------------------------------------------------
 
         Booking savedBooking =
-                bookingRepository.save(
-                        booking
-                );
+                bookingRepository.save(booking);
 
 
         // -------------------------------------------------
@@ -218,15 +195,46 @@ public class BookingService {
 
 
         // -------------------------------------------------
-        // 12. Return booking response
+        // 12. Send booking confirmation email
+        // -------------------------------------------------
+
+        try {
+
+            String customerName =
+                    passenger.getFirstName()
+                            + " "
+                            + passenger.getLastName();
+
+            emailService.sendBookingConfirmationEmail(
+                    passenger.getEmail(),
+                    customerName,
+                    savedBooking.getId(),
+                    flight.getFlightNumber(),
+                    flight.getSource(),
+                    flight.getDestination(),
+                    flight.getDepartureTime().toString(),
+                    1,
+                    0
+            );
+
+        } catch (Exception e) {
+
+            System.out.println(
+                    "Booking created successfully, but email could not be sent."
+            );
+
+            e.printStackTrace();
+        }
+
+
+        // -------------------------------------------------
+        // 13. Return booking response
         // -------------------------------------------------
 
         return bookingMapper.toResponse(
                 savedBooking
         );
     }
-
-
     // =====================================================
     // GET MY BOOKINGS
     // =====================================================
@@ -451,7 +459,37 @@ public class BookingService {
                 bookingRepository.save(
                         booking
                 );
+// -------------------------------------------------
+// Send cancellation email
+// -------------------------------------------------
 
+        try {
+
+            Passenger passenger =
+                    updatedBooking.getPassenger();
+
+
+
+            String customerName =
+                    passenger.getFirstName()
+                            + " "
+                            + passenger.getLastName();
+
+            emailService.sendBookingCancellationEmail(
+                    passenger.getEmail(),
+                    customerName,
+                    updatedBooking.getId(),
+                    flight.getFlightNumber()
+            );
+
+        } catch (Exception e) {
+
+            System.out.println(
+                    "Booking cancelled successfully, but cancellation email could not be sent."
+            );
+
+            e.printStackTrace();
+        }
 
         // -------------------------------------------------
         // 7. Return booking response

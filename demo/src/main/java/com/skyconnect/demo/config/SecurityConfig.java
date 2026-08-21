@@ -119,7 +119,6 @@ public class SecurityConfig {
                                 "/api/flights/**"
                         ).hasRole("ADMIN")
 
-
                         // =========================================
                         // FLIGHT PUT
                         // ONLY ADMIN
