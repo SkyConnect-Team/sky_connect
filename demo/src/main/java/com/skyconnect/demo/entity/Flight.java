@@ -4,6 +4,7 @@ import com.skyconnect.demo.enums.FlightStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -47,4 +48,7 @@ public class Flight {
     private Integer totalSeats;
 
     private Integer availableSeats;
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal price;
+
 }

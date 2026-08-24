@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -58,4 +59,13 @@ public class Booking {
 
     @Column(nullable = false)
     private LocalDateTime bookedAt;
+
+    @Column(
+            name = "total_amount",
+            nullable = false,
+            precision = 10,
+            scale = 2
+    )
+
+    private BigDecimal totalAmount;
 }

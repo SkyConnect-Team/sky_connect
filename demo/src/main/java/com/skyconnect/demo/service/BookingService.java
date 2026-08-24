@@ -3,13 +3,17 @@ package com.skyconnect.demo.service;
 import com.skyconnect.demo.dto.request.BookingRequest;
 import com.skyconnect.demo.dto.response.BookingResponse;
 import com.skyconnect.demo.dto.response.MyBookingResponse;
+
 import com.skyconnect.demo.entity.Booking;
 import com.skyconnect.demo.entity.Flight;
 import com.skyconnect.demo.entity.Passenger;
 import com.skyconnect.demo.entity.Seat;
+
 import com.skyconnect.demo.enums.BookingStatus;
 import com.skyconnect.demo.enums.SeatStatus;
+
 import com.skyconnect.demo.mapper.BookingMapper;
+
 import com.skyconnect.demo.repository.BookingRepository;
 import com.skyconnect.demo.repository.FlightRepository;
 import com.skyconnect.demo.repository.PassengerRepository;
@@ -21,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -45,11 +50,15 @@ public class BookingService {
 
     private final EmailService emailService;
 
+
     // =====================================================
     // CREATE BOOKING
     // =====================================================
+
     @Transactional
-    public BookingResponse createBooking(BookingRequest request) {
+    public BookingResponse createBooking(
+            BookingRequest request
+    ) {
 
         // -------------------------------------------------
         // 1. Find flight
@@ -155,12 +164,40 @@ public class BookingService {
 
         Booking booking =
                 Booking.builder()
-                        .bookingReference(bookingReference)
-                        .passenger(passenger)
-                        .flight(flight)
-                        .seat(seat)
-                        .status(BookingStatus.CONFIRMED)
-                        .bookedAt(LocalDateTime.now())
+
+                        .bookingReference(
+                                bookingReference
+                        )
+
+                        .passenger(
+                                passenger
+                        )
+
+                        .flight(
+                                flight
+                        )
+
+                        .seat(
+                                seat
+                        )
+
+                        .status(
+                                BookingStatus.CONFIRMED
+                        )
+
+                        .bookedAt(
+                                LocalDateTime.now()
+                        )
+
+                        // ---------------------------------
+                        // NEW
+                        // Store flight price in booking
+                        // ---------------------------------
+
+                        .totalAmount(
+                                flight.getPrice()
+                        )
+
                         .build();
 
 
@@ -169,7 +206,9 @@ public class BookingService {
         // -------------------------------------------------
 
         Booking savedBooking =
-                bookingRepository.save(booking);
+                bookingRepository.save(
+                        booking
+                );
 
 
         // -------------------------------------------------
@@ -180,7 +219,9 @@ public class BookingService {
                 SeatStatus.BOOKED
         );
 
-        seatRepository.save(seat);
+        seatRepository.save(
+                seat
+        );
 
 
         // -------------------------------------------------
@@ -191,7 +232,9 @@ public class BookingService {
                 flight.getAvailableSeats() - 1
         );
 
-        flightRepository.save(flight);
+        flightRepository.save(
+                flight
+        );
 
 
         // -------------------------------------------------
@@ -205,22 +248,34 @@ public class BookingService {
                             + " "
                             + passenger.getLastName();
 
+
             emailService.sendBookingConfirmationEmail(
+
                     passenger.getEmail(),
+
                     customerName,
+
                     savedBooking.getId(),
+
                     flight.getFlightNumber(),
+
                     flight.getSource(),
+
                     flight.getDestination(),
-                    flight.getDepartureTime().toString(),
+
+                    flight.getDepartureTime()
+                            .toString(),
+
                     1,
+
                     0
             );
 
         } catch (Exception e) {
 
             System.out.println(
-                    "Booking created successfully, but email could not be sent."
+                    "Booking created successfully, "
+                            + "but email could not be sent."
             );
 
             e.printStackTrace();
@@ -235,6 +290,8 @@ public class BookingService {
                 savedBooking
         );
     }
+
+
     // =====================================================
     // GET MY BOOKINGS
     // =====================================================
@@ -275,7 +332,9 @@ public class BookingService {
 
         List<Booking> bookings =
                 bookingRepository
-                        .findByPassenger_Email(email);
+                        .findByPassenger_Email(
+                                email
+                        );
 
 
         // -------------------------------------------------
@@ -285,9 +344,6 @@ public class BookingService {
         return bookings.stream()
 
                 .map(booking -> {
-
-                    // Load relationships while transaction
-                    // is still active
 
                     Flight flight =
                             booking.getFlight();
@@ -430,7 +486,9 @@ public class BookingService {
                     SeatStatus.AVAILABLE
             );
 
-            seatRepository.save(seat);
+            seatRepository.save(
+                    seat
+            );
         }
 
 
@@ -447,7 +505,9 @@ public class BookingService {
                     flight.getAvailableSeats() + 1
             );
 
-            flightRepository.save(flight);
+            flightRepository.save(
+                    flight
+            );
         }
 
 
@@ -459,9 +519,11 @@ public class BookingService {
                 bookingRepository.save(
                         booking
                 );
-// -------------------------------------------------
-// Send cancellation email
-// -------------------------------------------------
+
+
+        // -------------------------------------------------
+        // 7. Send cancellation email
+        // -------------------------------------------------
 
         try {
 
@@ -469,30 +531,36 @@ public class BookingService {
                     updatedBooking.getPassenger();
 
 
-
             String customerName =
                     passenger.getFirstName()
                             + " "
                             + passenger.getLastName();
 
+
             emailService.sendBookingCancellationEmail(
+
                     passenger.getEmail(),
+
                     customerName,
+
                     updatedBooking.getId(),
+
                     flight.getFlightNumber()
             );
 
         } catch (Exception e) {
 
             System.out.println(
-                    "Booking cancelled successfully, but cancellation email could not be sent."
+                    "Booking cancelled successfully, "
+                            + "but cancellation email could not be sent."
             );
 
             e.printStackTrace();
         }
 
+
         // -------------------------------------------------
-        // 7. Return booking response
+        // 8. Return booking response
         // -------------------------------------------------
 
         return bookingMapper.toResponse(
