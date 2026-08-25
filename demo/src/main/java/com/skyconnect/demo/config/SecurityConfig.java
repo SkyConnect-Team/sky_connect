@@ -162,7 +162,8 @@ public class SecurityConfig {
                                 "/api/passengers/**"
                         ).authenticated()
 
-
+                        .requestMatchers("/api/bookings/*/ticket")
+                        .authenticated()
                         // =========================================
                         // EVERYTHING ELSE
                         // JWT REQUIRED
