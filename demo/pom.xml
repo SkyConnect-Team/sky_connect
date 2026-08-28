@@ -87,7 +87,11 @@
 			<artifactId>core</artifactId>
 			<version>3.5.3</version>
 		</dependency>
-
+		<dependency>
+			<groupId>com.razorpay</groupId>
+			<artifactId>razorpay-java</artifactId>
+			<version>1.4.8</version>
+		</dependency>
 		<dependency>
 			<groupId>com.google.zxing</groupId>
 			<artifactId>javase</artifactId>

@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Getter
@@ -33,4 +34,8 @@ public class FlightRequest {
     @NotNull(message = "Total seats are required")
     @Min(value = 1, message = "Total seats must be at least 1")
     private Integer totalSeats;
+
+    @NotNull(message = "Price is required")
+    @Min(value = 1, message = "Price must be greater than 0")
+    private BigDecimal price;
 }
