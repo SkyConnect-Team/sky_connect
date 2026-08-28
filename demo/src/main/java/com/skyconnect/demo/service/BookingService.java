@@ -1,4 +1,5 @@
-package com.skyconnect.demo.service;
+
+        package com.skyconnect.demo.service;
 
 import com.skyconnect.demo.dto.request.BookingRequest;
 import com.skyconnect.demo.dto.response.BookingResponse;
@@ -106,7 +107,7 @@ public class BookingService {
 
 
         // -------------------------------------------------
-        // 4. Check seat belongs to flight
+        // 4. Check seat belongs to selected flight
         // -------------------------------------------------
 
         if (seat.getFlight() == null ||
@@ -182,18 +183,14 @@ public class BookingService {
                         )
 
                         .status(
-                                BookingStatus.CONFIRMED
+                                BookingStatus.PENDING_PAYMENT
                         )
 
                         .bookedAt(
                                 LocalDateTime.now()
                         )
 
-                        // ---------------------------------
-                        // NEW
-                        // Store flight price in booking
-                        // ---------------------------------
-
+                        // Store flight price at booking time
                         .totalAmount(
                                 flight.getPrice()
                         )
@@ -212,7 +209,11 @@ public class BookingService {
 
 
         // -------------------------------------------------
-        // 10. Mark seat as BOOKED
+        // 10. Temporarily reserve seat
+        //
+        // Seat is reserved while payment is in progress.
+        // It should become AVAILABLE again if payment fails
+        // or the pending booking is cancelled.
         // -------------------------------------------------
 
         seat.setStatus(
@@ -238,48 +239,12 @@ public class BookingService {
 
 
         // -------------------------------------------------
-        // 12. Send booking confirmation email
+        // 12. DO NOT SEND CONFIRMATION EMAIL HERE
+        //
+        // Payment has not been completed yet.
+        // Confirmation email will be sent after successful
+        // payment.
         // -------------------------------------------------
-
-        try {
-
-            String customerName =
-                    passenger.getFirstName()
-                            + " "
-                            + passenger.getLastName();
-
-
-            emailService.sendBookingConfirmationEmail(
-
-                    passenger.getEmail(),
-
-                    customerName,
-
-                    savedBooking.getId(),
-
-                    flight.getFlightNumber(),
-
-                    flight.getSource(),
-
-                    flight.getDestination(),
-
-                    flight.getDepartureTime()
-                            .toString(),
-
-                    1,
-
-                    0
-            );
-
-        } catch (Exception e) {
-
-            System.out.println(
-                    "Booking created successfully, "
-                            + "but email could not be sent."
-            );
-
-            e.printStackTrace();
-        }
 
 
         // -------------------------------------------------
@@ -428,6 +393,134 @@ public class BookingService {
 
 
     // =====================================================
+    // CONFIRM BOOKING AFTER PAYMENT
+    // =====================================================
+
+    @Transactional
+    public BookingResponse confirmBookingAfterPayment(
+            Long id
+    ) {
+
+        // -------------------------------------------------
+        // 1. Find booking
+        // -------------------------------------------------
+
+        Booking booking =
+                bookingRepository.findById(id)
+
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Booking not found with id: "
+                                                + id
+                                )
+                        );
+
+
+        // -------------------------------------------------
+        // 2. Check booking status
+        // -------------------------------------------------
+
+        if (booking.getStatus()
+                == BookingStatus.CONFIRMED) {
+
+            return bookingMapper.toResponse(
+                    booking
+            );
+        }
+
+
+        if (booking.getStatus()
+                != BookingStatus.PENDING_PAYMENT) {
+
+            throw new RuntimeException(
+                    "Booking cannot be confirmed. Current status: "
+                            + booking.getStatus()
+            );
+        }
+
+
+        // -------------------------------------------------
+        // 3. Change booking status
+        // -------------------------------------------------
+
+        booking.setStatus(
+                BookingStatus.CONFIRMED
+        );
+
+
+        // -------------------------------------------------
+        // 4. Save booking
+        // -------------------------------------------------
+
+        Booking confirmedBooking =
+                bookingRepository.save(
+                        booking
+                );
+
+
+        // -------------------------------------------------
+        // 5. Send confirmation email
+        // -------------------------------------------------
+
+        try {
+
+            Passenger passenger =
+                    confirmedBooking.getPassenger();
+
+            Flight flight =
+                    confirmedBooking.getFlight();
+
+
+            String customerName =
+                    passenger.getFirstName()
+                            + " "
+                            + passenger.getLastName();
+
+
+            emailService.sendBookingConfirmationEmail(
+
+                    passenger.getEmail(),
+
+                    customerName,
+
+                    confirmedBooking.getId(),
+
+                    flight.getFlightNumber(),
+
+                    flight.getSource(),
+
+                    flight.getDestination(),
+
+                    flight.getDepartureTime()
+                            .toString(),
+
+                    1,
+
+                    0
+            );
+
+        } catch (Exception e) {
+
+            System.out.println(
+                    "Payment successful and booking confirmed, "
+                            + "but confirmation email could not be sent."
+            );
+
+            e.printStackTrace();
+        }
+
+
+        // -------------------------------------------------
+        // 6. Return response
+        // -------------------------------------------------
+
+        return bookingMapper.toResponse(
+                confirmedBooking
+        );
+    }
+
+
+    // =====================================================
     // CANCEL BOOKING
     // =====================================================
 
@@ -465,7 +558,15 @@ public class BookingService {
 
 
         // -------------------------------------------------
-        // 3. Change booking status
+        // 3. Store old status
+        // -------------------------------------------------
+
+        BookingStatus oldStatus =
+                booking.getStatus();
+
+
+        // -------------------------------------------------
+        // 4. Change booking status
         // -------------------------------------------------
 
         booking.setStatus(
@@ -474,13 +575,17 @@ public class BookingService {
 
 
         // -------------------------------------------------
-        // 4. Make seat available again
+        // 5. Make seat available again
+        //
+        // Only restore resources if the seat was actually
+        // reserved by this booking.
         // -------------------------------------------------
 
         Seat seat =
                 booking.getSeat();
 
-        if (seat != null) {
+        if (seat != null &&
+                seat.getStatus() == SeatStatus.BOOKED) {
 
             seat.setStatus(
                     SeatStatus.AVAILABLE
@@ -493,16 +598,24 @@ public class BookingService {
 
 
         // -------------------------------------------------
-        // 5. Increase flight available seats
+        // 6. Increase flight available seats
         // -------------------------------------------------
 
         Flight flight =
                 booking.getFlight();
 
-        if (flight != null) {
+        if (flight != null &&
+                oldStatus != BookingStatus.CANCELLED) {
+
+            Integer availableSeats =
+                    flight.getAvailableSeats();
+
+            if (availableSeats == null) {
+                availableSeats = 0;
+            }
 
             flight.setAvailableSeats(
-                    flight.getAvailableSeats() + 1
+                    availableSeats + 1
             );
 
             flightRepository.save(
@@ -512,7 +625,7 @@ public class BookingService {
 
 
         // -------------------------------------------------
-        // 6. Save updated booking
+        // 7. Save updated booking
         // -------------------------------------------------
 
         Booking updatedBooking =
@@ -522,7 +635,7 @@ public class BookingService {
 
 
         // -------------------------------------------------
-        // 7. Send cancellation email
+        // 8. Send cancellation email
         // -------------------------------------------------
 
         try {
@@ -560,7 +673,7 @@ public class BookingService {
 
 
         // -------------------------------------------------
-        // 8. Return booking response
+        // 9. Return booking response
         // -------------------------------------------------
 
         return bookingMapper.toResponse(

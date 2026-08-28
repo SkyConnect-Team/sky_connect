@@ -157,6 +157,11 @@ public class FlightService {
                 request.getArrivalTime()
         );
 
+
+        flight.setPrice(
+                request.getPrice()
+        );
+
         Flight updatedFlight =
                 flightRepository.save(flight);
 

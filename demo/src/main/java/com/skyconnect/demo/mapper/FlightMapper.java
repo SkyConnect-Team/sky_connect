@@ -23,6 +23,7 @@ public class FlightMapper {
                 .totalSeats(request.getTotalSeats())
                 .availableSeats(request.getTotalSeats())
                 .status(FlightStatus.SCHEDULED)
+                .price(request.getPrice())
                 .build();
     }
 
@@ -46,6 +47,7 @@ public class FlightMapper {
                 .status(flight.getStatus())
                 .totalSeats(flight.getTotalSeats())
                 .availableSeats(flight.getAvailableSeats())
+                .price(flight.getPrice())
                 .build();
     }
 }

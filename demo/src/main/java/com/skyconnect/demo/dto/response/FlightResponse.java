@@ -4,6 +4,7 @@ import com.skyconnect.demo.enums.FlightStatus;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Getter
@@ -33,4 +34,6 @@ public class FlightResponse {
     private Integer totalSeats;
 
     private Integer availableSeats;
+
+    private BigDecimal price;
 }

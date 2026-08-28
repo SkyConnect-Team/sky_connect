@@ -5,7 +5,8 @@ import com.skyconnect.demo.enums.BookingStatus;
 import jakarta.persistence.*;
 
 import lombok.*;
-
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -54,7 +55,7 @@ public class Booking {
     private Seat seat;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "status")
     private BookingStatus status;
 
     @Column(nullable = false)
