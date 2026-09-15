@@ -17,10 +17,9 @@ public class EmailController {
     // Test Email
     // ==========================================
     @PostMapping("/test")
-    public ResponseEntity<String> sendTestEmail(
-            @RequestParam String email) {
+    public ResponseEntity<String> sendTestEmail(@RequestParam String email) {
 
-        emailService.sendEmail(
+        boolean sent = emailService.sendEmail(
                 email,
                 "SkyConnect Email Test",
                 "Hello!\n\n" +
@@ -30,8 +29,14 @@ public class EmailController {
                         "SkyConnect Team"
         );
 
-        return ResponseEntity.ok(
-                "Test email sent successfully to " + email
+        if (sent) {
+            return ResponseEntity.ok(
+                    "Test email sent successfully to " + email
+            );
+        }
+
+        return ResponseEntity.status(500).body(
+                "Failed to send test email to " + email
         );
     }
 }

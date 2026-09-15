@@ -96,7 +96,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/auth/**"
                         ).permitAll()
-
+                        .requestMatchers("/api/email/test").hasRole("ADMIN")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         // =========================================
                         // FLIGHT GET

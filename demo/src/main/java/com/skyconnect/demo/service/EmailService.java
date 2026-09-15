@@ -4,30 +4,25 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
-
+import org.springframework.beans.factory.annotation.Value;
 @Service
 @RequiredArgsConstructor
 public class EmailService {
 
     private final JavaMailSender mailSender;
 
-    private final String fromEmail = "dharshanamuthuramalingam@gmail.com";
+    @Value("${spring.mail.username}")
+    private String fromEmail;
 
-
+    @Value("${spring.mail.password}")
+    private String mailPassword;
     // =====================================================
     // GENERIC EMAIL
     // =====================================================
 
-    public void sendEmail(
-            String to,
-            String subject,
-            String message
-    ) {
-
+    public boolean sendEmail(String to, String subject, String message) {
         try {
-
-            SimpleMailMessage mailMessage =
-                    new SimpleMailMessage();
+            SimpleMailMessage mailMessage = new SimpleMailMessage();
 
             mailMessage.setFrom(fromEmail);
             mailMessage.setTo(to);
@@ -36,17 +31,13 @@ public class EmailService {
 
             mailSender.send(mailMessage);
 
-            System.out.println(
-                    "Email sent successfully to: " + to
-            );
+            System.out.println("Email sent successfully to: " + to);
+            return true;
 
         } catch (Exception e) {
-
-            System.out.println(
-                    "Failed to send email to: " + to
-            );
-
+            System.out.println("Failed to send email to: " + to);
             e.printStackTrace();
+            return false;
         }
     }
 

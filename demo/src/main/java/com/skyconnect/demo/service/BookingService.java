@@ -1,5 +1,4 @@
-
-        package com.skyconnect.demo.service;
+package com.skyconnect.demo.service;
 
 import com.skyconnect.demo.dto.request.BookingRequest;
 import com.skyconnect.demo.dto.response.BookingResponse;
